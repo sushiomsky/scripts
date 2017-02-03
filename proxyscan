@@ -1,0 +1,6 @@
+#!/bin/bash
+#nmap -T4 -p 8080,8123,3128,800 --script=http-open-proxy-anon.nse -d -iL ~/bin/nmap_iplist > ~/nmap.out 2>&1 &
+
+#nmap -n -sV -T4 -p 8080,8123,3128,8000 --script=http-open-proxy-anon.nse -iL ~/bin/nmap_iplist > ~/nmap.out &
+nmap -T4 -p 80,8080,8123,3128,8000,8118 --script=http-open-proxy-anon.nse -iL ~/bin/nmap_iplist_single > ~/nmap.out 2>&1 &
+#tail -f ~/nmap.out

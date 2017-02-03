@@ -1,0 +1,30 @@
+#!/bin/bash
+#voice control
+ 
+#1. magic word recognition
+#2. spelled letter and number recognition
+#3. comparision and similarity checking on two audio signals
+
+#4. a spell & say mechanism to add aliases for commands
+#5. a tab key like auto completition mechanism
+#6. Voice controlled interface for the command & speech recognition database
+#7. error correction if we have a weak match we ask if we are right with our guess, if the match is not found we ask to spell it than.
+#8. speech pause
+#9. Fallback mechanism to google api or similar
+
+
+###essential built in commands###
+
+function record_command {
+	#spelled letters followed by 1-10 spoken version of the word
+	arecord -N -V mono --disable-resample --disable-softvol -t wav -f cd -d 10 test.wav
+}
+
+function define_command {
+	#define a command by combining existing commands with logical statements
+	#for example 
+	#IF $command [TRUE|FALSE|GREATER|LESS|EQUAL] [$command2| DO $command_
+}
+
+
+###custom commands###

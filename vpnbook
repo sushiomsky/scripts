@@ -1,0 +1,19 @@
+#!/bin/bash
+if [ ! -x /usr/sbin/openvpn ] 
+	then
+	echo "openvpn is missing quitting.."
+	exit 1
+fi
+
+sysctl -w net.ipv4.ip_forward=1
+	
+cd ~
+rm -rf VPNBook*
+rm -rf *.ovpn
+wget http://www.vpnbook.com/free-openvpn-account/VPNBook.com-OpenVPN-Euro1.zip
+unzip VPNBook.com-OpenVPN-Euro1.zip
+#wget -O cred_page http://www.vpnbook.com/freevpn
+#cat cred_page|grep "Password:" | egrep -i '\<strong>*<\>'
+echo "vpnbook" > up
+echo "StUfefE7" >> up
+openvpn --config vpnbook-euro1-tcp80.ovpn --auth-user-pass up

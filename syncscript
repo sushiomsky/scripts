@@ -1,0 +1,26 @@
+#!/bin/bash
+
+gdrive_path=/home/$USER/gdrive/
+
+cd ~
+
+if [ ! -d $gdrive_path ]
+	then
+		echo "gdrive directory is missing creating $gdrive_path" 
+		mkdir -p ~/gdrive
+fi
+
+google-drive-ocamlfuse
+if [ $? == 1 ] 
+then
+	echo "google-drive-ocamlfuse is missing" 
+	exit 1
+else
+	google-drive-ocamlfuse $gdrive_path
+	tar -zc .profile .bashrc bin Dokumente -f backup.tar.gz
+	cp backup.tar.gz $gdrive_path
+	fusermount -u $gdrive_path
+fi
+
+
+

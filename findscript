@@ -1,0 +1,10 @@
+#!/bin/bash
+cd /home/sushi/Bilder/restored
+find ${PWD} -name *.mp3 -delete
+find ${PWD} -name *.txt -delete
+find ${PWD} -name *.avi -delete
+find ${PWD} -size +250k -name *.jpg -exec mv {} ../filtered/ \;
+find ${PWD} -size +250k -name *.png -exec mv {} ../filtered/ \;
+find ${PWD} -size +250k -name *.JPG -exec mv {} ../filtered/ \;
+find ${PWD} -size +250k -name *.PNG -exec mv {} ../filtered/ \;
+chown -R sushi ../filtered/*

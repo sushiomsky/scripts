@@ -1,0 +1,130 @@
+#!/bin/bash
+
+export INET_IFACE="wlan0"
+export TEST_FREQUENCY=60
+export CONNECT_TIMEOUT=60
+
+function is_online {
+	ping -c 1 -q 8.8.8.8
+	online=$?
+	if [ $online -eq 0 ]; then
+		offtime=0
+		ontime=`expr $ontime + 1`
+	else
+		offtime=`expr $offtime + 1`
+		online=1
+		ontime=0
+		wall -n "Offline since $offtime minutes "\n
+		#echo "Offline since $offtime minutes "\n
+	fi
+	}
+
+function repair_wifi {
+		wpa_cli -i $INET_IFACE status > wifi_status
+		
+		source wifi_status
+		
+		if [ $wpa_state -eq "COMPLETED" ]; then
+			is_online
+		fi
+			
+		if [ $offtime -gt 0 ]		
+			wpa_cli -i $INET_IFACE reauthenticate
+			sleep 45
+			is_online
+		fi
+		
+}
+	
+function compare_networks {
+	echo "disconnecting.."
+	wpa_cli -i $INET_IFACE disconnect
+	echo "scanning."	
+	wpa_cli -i $INET_IFACE scan
+	i=0
+	old_loss_rate=100
+	
+	networks=` wpa_cli list_networks|wc -l`
+	networks=`expr $networks - 2`
+	
+	while [ $i -lt $networks ];
+	do
+	
+		echo "Testing network $i \n"	
+		wpa_cli -i $INET_IFACE select_network $i
+		timer=0
+		dhclient -r $INET_IFACE
+		dhclient $INET_IFACE
+		is_online
+			
+		while [ $timer -lt $CONNECT_TIMEOUT ] && [ $online -ne 0 ];
+		do
+		 	sleep 1
+			timer=`expr $timer + 1`
+			is_online
+			
+		done
+		
+		
+		if [ $online -eq 0 ]; then
+			
+			echo "Network $i is connected to the internet..."
+			echo "Checking connection quality..."
+			check_packet_loss
+			echo "packet loss rate $loss_rate"
+		
+			if [ $loss_rate -lt $old_loss_rate ]; then
+				old_loss_rate=$loss_rate
+				lowest_loss_id=$i
+			fi
+		fi
+		i=`expr $i + 1`
+	done
+	
+	wpa_cli -i $INET_IFACE select_network $lowest_loss_id
+	echo "connecting to network $lowest_loss_id"	
+}
+function icmp_only {
+	iptables -F
+	#Drop new connections other than ping
+	iptables -P INPUT DROP
+	iptables -P OUTPUT DROP
+	iptables -P FORWARD DROP
+	
+	#iptables -A INPUT  -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+	#iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED     -j ACCEPT
+	iptables -A OUTPUT -p icmp -j ACCEPT
+	iptables -A INPUT -p icmp -j ACCEPT
+}
+	
+function accept_policy {
+	iptables -F
+	iptables -P INPUT ACCEPT
+	iptables -P OUTPUT ACCEPT
+	iptables -P FORWARD ACCEPT
+}
+	
+function check_packet_loss {
+	icmp_only
+	loss_rate=`ping -f -w 10 -q 8.8.8.8|grep -oP "\,\s+\K\d{2}%"|grep -oP "\d{2}"`
+	adaptive_loss_rate=`ping -A -w 10 -q 8.8.8.8|grep -oP "\,\s+\K\d{2}%"|grep -oP "\d{2}"`
+	echo "Network $i has about $loss_rate loss rate and about $adaptive_loss_rate"
+	accept_policy
+}
+
+function loop_script {	
+while true
+do	
+	is_online
+	if [ $offtime -gt 5 ]; then
+		compare_networks
+	fi
+	if [ $offtime -gt 0 ]; then
+		repair_wifi
+	fi
+	
+	sleep $TEST_FREQUENCY
+	
+done
+}
+loop_script

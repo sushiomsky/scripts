@@ -1,0 +1,12 @@
+#!/bin/bash
+cd /mnt/gentoo
+mount /dev/sda1 /mnt/gentoo &&
+mount /dev/sda4 /mnt/gentoo/boot &&
+mount -t proc proc /mnt/gentoo/proc
+mount --rbind /sys /mnt/gentoo/sys
+mount --make-rslave /mnt/gentoo/sys
+mount --rbind /dev /mnt/gentoo/dev
+mount --make-rslave /mnt/gentoo/dev
+chroot /mnt/gentoo /bin/bash 
+source /etc/profile 
+export PS1="(chroot) $PS1"

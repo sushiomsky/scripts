@@ -1,0 +1,12 @@
+
+BSSID, First time seen, Last time seen, channel, Speed, Privacy, Cipher, Authentication, Power, # beacons, # IV, LAN IP, ID-length, ESSID, Key
+9C:C7:A6:FC:D7:C2, 2016-11-05 02:00:13, 2016-11-05 02:00:16,  1,  54, WPA2, CCMP,PSK, -71,        6,        0,   0.  0.  0.  0,  23, FRITZ!Box 6490 Cable 2g, 
+24:65:11:EA:5E:FC, 2016-11-05 02:00:13, 2016-11-05 02:00:17,  1,  54, WPA2WPA , CCMP TKIP,PSK, -68,       22,        0,   0.  0.  0.  0,  20, FRITZ!Box 6360 Cable, 
+4C:E6:76:64:94:F4, 2016-11-05 02:00:17, 2016-11-05 02:00:19,  5,  54, WPA2WPA , CCMP TKIP,PSK, -60,       14,        0,   0.  0.  0.  0,  12, 4CE6766494F4, 
+C8:02:10:5D:6C:41, 2016-11-05 02:00:13, 2016-11-05 02:00:16,  1,  54, WPA2, CCMP,PSK, -42,        4,        0,   0.  0.  0.  0,  20, LG_MusicFlow_DL_3120, 
+5C:49:79:57:FB:73, 2016-11-05 02:00:13, 2016-11-05 02:00:17,  1,  54, WPA2WPA , CCMP TKIP,PSK, -34,       48,        2,   0.  0.  0.  0,  20, FRITZ!Box 6360 Cable, 
+3C:7A:8A:F8:37:70, 2016-11-05 02:00:18, 2016-11-05 02:00:19,  6,  54, WPA2, CCMP,PSK, -65,        7,        0,   0.  0.  0.  0,  10, ARRIS-3772, 
+
+Station MAC, First time seen, Last time seen, Power, # packets, BSSID, Probed ESSIDs
+00:37:6D:EB:E6:96, 2016-11-05 02:00:19, 2016-11-05 02:00:19, -73,        2, 4C:E6:76:64:94:F4,
+
