@@ -1,3 +1,0 @@
-#install essentials
-apt-get update
-apt-get -y --force-yes install git nmap sysv-rc-conf

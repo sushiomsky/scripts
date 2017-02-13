@@ -61,4 +61,17 @@ iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED     -j ACCEPT
 iptables -A INPUT  -s $LOCAL_NET -p udp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
 iptables -A OUTPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 
+
+###############################################
+#############QUALITY OF SERVICE################
+###############################################
+iptables -t mangle -A PREROUTING -p tcp --sport ssh -j TOS --set-tos Minimize-Delay
+iptables -t mangle -A PREROUTING -p tcp --dport ssh -j TOS --set-tos Minimize-Delay
+
+iptables -t mangle -A PREROUTING -p tcp --sport http -j TOS --set-tos Minimize-Delay
+iptables -t mangle -A PREROUTING -p tcp --dport http -j TOS --set-tos Minimize-Delay
+
+iptables -t mangle -A PREROUTING -p tcp --sport https -j TOS --set-tos Minimize-Delay
+iptables -t mangle -A PREROUTING -p tcp --dport https -j TOS --set-tos Minimize-Delay
+
 iptables -L

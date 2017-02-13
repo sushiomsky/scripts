@@ -111,4 +111,7 @@ alias du='du -ch'
 # top is atop, just like vi is vim
 alias top='atop' 
  
+alias dmesg='dmesg -w'
+alias syslogs='tail -f /var/log/syslog'
+alias daemonlogs='tail -f /var/log/daemon.log'
 
