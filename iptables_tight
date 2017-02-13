@@ -1,0 +1,64 @@
+#!/bin/bash
+
+LOCAL_IFACE="wlan0"
+INET_IFACE="wlan1"
+LOCAL_NET="192.168.1.0/24"
+LOCAL_IP="192.168.1.1"
+
+# open DNS servers you use: cat /etc/resolv.conf
+DNS_SERVER="8.8.8.8"
+
+cat << EOF > /etc/resolv.conf
+nameserver $DNS_SERVER
+EOF
+
+###default rules for iptables#######
+iptables -F 
+iptables -t nat -F
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+###full loopback####
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+
+# Kabelnetzwerk maskieren, Port-Forwarding sowie Nat aktivieren
+iptables -A FORWARD -o $INET_IFACE -i $LOCAL_IFACE -s $LOCAL_NET -m conntrack --ctstate NEW -j ACCEPT
+iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -t nat -A POSTROUTING -o $INET_IFACE -j MASQUERADE
+
+###Allow Ping to Outside###
+iptables -A OUTPUT -p icmp --icmp-type echo-request -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type echo-reply -j ACCEPT
+
+###Allow Ping this host from the Local network####
+iptables -A INPUT -s $LOCAL_NET -p icmp -j ACCEPT
+iptables -A OUTPUT -d $LOCAL_NET -p icmp -j ACCEPT
+
+###outgoing ssh###
+iptables -A OUTPUT -o $INET_IFACE -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A INPUT -i $INET_IFACE -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
+
+###outgoing dns###
+iptables -A OUTPUT -p udp -o $INET_IFACE --dport 53 -d $DNS_SERVER -j ACCEPT
+iptables -A INPUT -p udp -i $INET_IFACE --sport 53 -s $DNS_SERVER -j ACCEPT
+
+###outgoing http###
+iptables -A OUTPUT -o $INET_IFACE -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A INPUT -i $INET_IFACE -p tcp --sport 80 -m state --state ESTABLISHED -j ACCEPT
+
+###outgoing https###
+iptables -A OUTPUT -o $INET_IFACE -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A INPUT -i $INET_IFACE -p tcp --sport 443 -m state --state ESTABLISHED -j ACCEPT
+
+###DON'T COMMENT THIS ON A REMOTE HOST###
+###incoming ssh from the local network###	
+iptables -A INPUT  -s $LOCAL_NET -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED     -j ACCEPT
+
+###incoming dns  from the local network###	
+iptables -A INPUT  -s $LOCAL_NET -p udp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+
+iptables -L

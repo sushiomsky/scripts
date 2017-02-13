@@ -1,0 +1,24 @@
+#!/bin/bash
+
+INET_IFACE="wlan1"
+
+###default rules for iptables#######
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+###full loopback####
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+
+###ssh###	
+iptables -A INPUT  -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED     -j ACCEPT
+
+###Allow Ping from Inside to Outside###
+iptables -A OUTPUT -p icmp --icmp-type echo-request -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type echo-reply -j ACCEPT
+
+###dns###
+iptables -A OUTPUT -p udp -o $INET_IFACE --dport 53 -j ACCEPT
+iptables -A INPUT -p udp -i $INET_IFACE --sport 53 -j ACCEPT

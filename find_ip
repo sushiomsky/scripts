@@ -1,0 +1,2 @@
+#!/bin/bash
+#script that finds an unused ip in the subnet reachable on interface $1

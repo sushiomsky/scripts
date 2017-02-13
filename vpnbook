@@ -4,6 +4,11 @@ if [ ! -x /usr/sbin/openvpn ]
 	echo "openvpn is missing quitting.."
 	exit 1
 fi
+if [ $UID -ne 0 ] 
+	then
+		echo "You need to be root"
+	exit 1
+fi
 
 sysctl -w net.ipv4.ip_forward=1
 	

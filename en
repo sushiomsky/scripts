@@ -1,0 +1,23 @@
+:
+# en - translate german words into english
+
+: ${DICT:=$HOME/lib/words}
+: ${EGREP:=egrep}
+
+if [ $# -gt 1 ]
+then
+    # Convert "a b c" to "(a|b|c)" for egrep
+    P=
+    for i
+    do	P="${P:+$P|}$i"
+    done
+    P="($P)"
+    set -- "$P"
+fi
+
+if [ -r "$DICT" ]
+then
+    $EGREP -i "^[^ 	][^ 	]*[ 	][ 	]*$1" < $DICT
+else				# Compressed?
+    icat "$DICT" 2>/dev/null | $EGREP -i "^[^ 	][^ 	]*[ 	][ 	]*$1"
+fi

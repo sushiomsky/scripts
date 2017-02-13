@@ -1,10 +1,85 @@
 #!/bin/bash
 
-is_online(){
-wget -q --tries=10 --timeout=20 --spider http://google.com
-if [[ $? -eq 0 ]]; then
-        echo "Online"
-else
-        echo "Offline"
-fi
+INET_IFACE = "wlan1"
+TEST_FREQUENCY=60
+
+function is_online {
+	nc -z 8.8.8.8 53
+	online=$?
+	
+	if [ $online -eq 0 ]; then
+		offtime=0
+		return 0
+	else
+		offtime=`expr $offtime + 1`
+		wall -n "Offline since $offtime minutes "\n
+		return 1
+	fi
 }
+
+function repair_wifi{
+		wpa_cli -i $INET_IFACE status > wifi_status
+		source wifi_status
+		
+		if [ $wpa_state -ne "COMPLETED" ]; then
+			wpa_cli -i $INET_IFACE reauthenticate
+			sleep 30
+			
+			wpa_cli -i $INET_IFACE status > wifi_status
+			source wifi_status
+			if [ $wpa_state -ne "COMPLETED" ]; then
+				sleep 30				
+				wpa_cli -i $INET_IFACE status > wifi_status
+				source wifi_status
+				if [ $wpa_state -ne "COMPLETED" ]; then
+					return 1
+				else if [ $wpa_state -eq "COMPLETED"  ]
+					return 0
+				fi	
+			fi
+		fi
+}
+
+
+function repair_connection {
+	echo "Trying to repair connection..."
+	repair_wifi
+	
+	if [ $? -eq 0 ]; then
+		repair_dhclient
+	fi
+	
+	is_online
+	
+	if [ $online -eq 0 ]; then
+		return 0
+	else if [ $online -ne 0 ]; then
+		return 1
+	fi
+}
+
+function repair_dhclient {
+		dhclient -r $INET_IFACE
+		sleep 3
+		dhclient $INET_IFACE
+		sleep 3
+}
+
+is_online
+if [ $? -ne 0 ]; then
+	repair_connection
+	is_online
+	
+	if [ $? -ne 0 ]; then
+		service networking restart
+		sleep 30
+		repair_wifi
+		repair_dhclient
+		sleep 30
+	fi
+	
+	is_online
+	if [ $? -ne 0 ]; then
+		shutdown -r -t 90 
+	fi
+fi

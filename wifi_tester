@@ -1,0 +1,167 @@
+#!/bin/bash
+
+INET_IFACE="wlan1"
+LOCAL_IFACE="wlan0"
+TEST_FREQUENCY=60
+
+TEST_DNS="8.8.8.8"
+
+function is_online {
+	nc -z $TEST_DNS 53
+	online=$?
+	if [ $online -eq 0 ]; then
+		offtime=0
+		return 0
+	else
+		offtime=`expr $offtime + 1`
+		wall -n "Offline since $offtime minutes "\n
+		return 1
+	fi
+}
+
+function compare_networks {
+	wpa_cli $INET_IFACE disconnect
+	wpa_cli $INET_IFACE scan
+	i=0
+	old_loss_rate=100
+	
+	networks=` wpa_cli list_networks|wc -l`
+	
+	while [ $i -lt $networks ];
+	do
+	
+		echo "Testing network $i"\n	
+		wpa_cli $INET_IFACE select_network $i
+		i=`expr $i +1`
+	
+		while [ $timer -lt $CONNECT_TIMEOUT && is_online -ne 0 ];
+		do
+		 	sleep 1
+			timer = `expr $timer + 1`
+		done
+		
+		if [ is_online -eq 0 ]; then
+			
+			echo "Network $i is connected to the internet..."\n
+			echo "Checking connection quality..."\n
+			
+			loss_rate = `check_packet_loss`
+			echo "packet loss rate $loss_rate"\n
+		
+			if [ $loss_rate -lt $old_loss_rate ]; then
+				old_loss_rate = $loss_rate
+				lowest_loss_id = $i
+			fi
+		fi
+	done
+	
+	wpa_cli $INET_IFACE select_network $lowest_loss_id
+	echo "connecting to network $lowest_loss_id"	
+}
+	
+function check_packet_loss {
+	#Drop new connections other than ping
+	iptables -F
+	iptables -P INPUT DROP
+	iptables -P OUTPUT DROP
+	iptables -P FORWARD DROP
+	
+	#iptables -A INPUT  -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+	#iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED     -j ACCEPT
+	iptables -A OUTPUT -p icmp -j ACCEPT
+	iptables -A INPUT -p icmp -j ACCEPT
+	
+	ping -c 3 8.8.8.8
+	return `ping -f -w 5 8.8.8.8|grep -oP "\,\s+\K\d{2}%"|grep -oP "\d{2}"`
+	iptables -F
+	}
+
+
+function repair_connection {
+	echo "Trying to repair connection..."
+	
+	repair_iptables
+	
+	wpa_cli -i $INET_IFACE status > /tmp/wifi_status
+	source /tmp/wifi_status
+	
+	if [ $wpa_state -ne "COMPLETED" ]; then
+		wpa_cli -i $INET_IFACE reauthenticate
+		sleep 25
+	fi
+	
+	if [ $wpa_state -eq "COMPLETED" ]; then
+		repair_dhclient
+	fi
+}
+
+function repair_dhclient {
+		dhclient -r $INET_IFACE
+		sleep 5
+		dhclient $INET_IFACE
+		sleep 5
+}
+	
+function repair_iptables {
+# Firewall zurücksetzen, Tabellen leeren
+	iptables -P INPUT ACCEPT
+	iptables -P OUTPUT ACCEPT
+	iptables -P FORWARD ACCEPT
+	iptables -F
+	iptables -X
+	iptables -t nat -F
+
+# Kabelnetzwerk maskieren, Port-Forwarding sowie Nat aktivieren
+	iptables -A FORWARD -o $INET_IFACE -i $LOCAL_IFACE -s 192.168.1.0/24 -m conntrack --ctstate NEW -j ACCEPT
+	iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	iptables -t nat -A POSTROUTING -o $INET_IFACE -j MASQUERADE
+}
+
+function loop_script {	
+while true
+do	
+	is_online
+	if [ $offtime -gt 2 ]; then
+		repair_connection
+	fi
+	
+	if [ $? -ne 0 ]; then
+		/etc/init.d/networking restart
+	fi
+	
+	if [ $offtime -gt 15 ]; then
+		reboot
+	fi	
+	sleep $TEST_FREQUENCY
+done
+}
+
+is_online
+if [ $? -ne 0 ]; then
+	#we seem to be offline but lets check again
+	sleep 5
+	is_online
+	if [ $? -ne 0 ]; then
+		#check if we are connected to an AP
+		wpa_cli -i $INET_IFACE status > /tmp/wifi_status
+		source /tmp/wifi_status
+	
+		if [ $wpa_state -ne "COMPLETED" ]; then
+			wpa_cli -i $INET_IFACE reauthenticate
+			sleep 45
+			wpa_cli -i $INET_IFACE status > /tmp/wifi_status
+			source /tmp/wifi_status
+		fi
+	
+		#if we are connected to an AP
+		if [ $wpa_state -eq "COMPLETED" ]; then
+			dhclient -r $INET_IFACE
+			sleep 15
+			dhclient $INET_IFACE
+			sleep 15
+			/etc/init.d/dnsmasq restart
+		else
+			/etc/init.d/networking restart
+		fi
+	fi
+fi
