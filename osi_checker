@@ -1,0 +1,14 @@
+#!/bin/bash
+##########################################################################
+# Title      :	osi_checker
+# Author     :	Dennis Suchomsky <dennis.suchomsky@gmail.com>
+# Date       :	2017
+# Requires   :	ping
+# Category   :	Network Utilities
+##########################################################################
+# Description
+#	Diagnose a network issue layer by layer
+#
+# Note:
+# 
+##########################################################################

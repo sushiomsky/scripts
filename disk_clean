@@ -1,0 +1,8 @@
+#!/bin/bash
+#automated maintenance tasks
+
+apt-get -y --force-yes autoclean
+apt-get -y --force-yes autoremove
+rm -f /var/log/*.gz
+#set logfiles to 0 bytes
+for I in `ls "/var/log/*.log"`;do >"$I";done

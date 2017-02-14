@@ -1,0 +1,7 @@
+#!/bin/bash
+cd /media/sushi/BOOT/
+#bilder löschen die zu klein sind
+#duplikate finden
+fdupes -NdIr alle_bilder/
+find -size 100
+exiftool '-Directory<CreateDate' -d alle_bilder_chronologisch/%Y/%Y-%m -r alle_bilder/

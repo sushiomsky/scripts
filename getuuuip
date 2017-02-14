@@ -1,0 +1,80 @@
+#!/bin/bash
+##########################################################################
+# Title      :	osi_checker
+# Author     :	Dennis Suchomsky <dennis.suchomsky@gmail.com>
+# Date       :	2017
+# Requires   :	ping
+# Category   :	Network Utilities
+#
+# this script finds an unused ip address when dhcp is out of order
+# or you simple want to stay under the radar
+###########################################################################
+
+###########################################################################
+# getuuip Copyright 2017, Dennis Suchomsky (dennis.suchomsky@gmail.com)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License at (http://www.gnu.org/licenses/) for
+# more details.
+###########################################################################
+
+
+
+function usage {
+    echo >&2 "usage: $0 interface"
+    exit 1
+}
+
+function requirements {
+	RED=$(echo -e "\e[1;31m")
+	GRN=$(echo -e "\e[1;32m")
+	
+	LIST="arp-scan tcpdump macchanger"
+	
+	for COMMAND in $LIST
+	do
+		if [ $(which $COMMAND) -z ] 2> /dev/null
+		then
+			clear
+			echo $RED" [>] $GRN$COMMAND$RED was not found, install it now?$GRN [Y/n]"
+			read -p "  >" DOINST
+			case $DOINST in
+			"")INST=1;;
+			"Y")INST=1;;
+			"y")INST=1
+			esac
+			if [ $INST = 1 ] 2> /dev/null
+			then
+				apt-get install $COMMAND
+				if [ $(which $COMMAND) -z ] 2> /dev/null
+				then
+					echo $RED" [*] ERROR: $COMMAND could not be installed, please install manually"
+				else
+					echo " [*] $COMMAND Installed"
+				fi
+				INST=""
+			fi
+		fi
+	done
+}
+
+if [ $UID -ne 0 ]
+	then
+	echo "Error: You need to be root.."
+	exit 1
+fi
+
+[ $# -lt 1 ] && usage
+requirements
+DEVICE=$1
+ifconfig $DEVICE down
+macchanger -r
+ifconfig $DEVICE up
+
