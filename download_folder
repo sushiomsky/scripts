@@ -1,0 +1,3 @@
+#!/bin/bash
+mv ~/Downloads/*.mp3 ~/Musik/
+mv ~/Downloads/*.mp4 ~/Videos/

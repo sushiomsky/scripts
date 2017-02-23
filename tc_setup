@@ -1,0 +1,115 @@
+#!/bin/bash
+ 
+# 2016/02 Fyzix
+# QOS ruleset
+# Default ruleset assumes a maximum internet connection speed of 40mbit and targets a MAX ceiling of 20+40mbit.
+ 
+## Variables
+MAX_BITRATE="5mbit" # Set this to just above the maximum speed of your internet connection
+CONNECTION_BITRATE="3mbit" # Set this to the bitrate your ISP sells you.
+INTERFACE="wlan1"
+
+# Below parameter sets lower-end bit rate of the traffic shapping.
+CLASS1_BITRATE="30mbit" # Highest priority traffic.
+CLASS2_BITRATE="20mbit" # High priority traffic.
+CLASS3_BITRATE="10mbit" # Medium priority traffic.
+CLASS4_BITRATE="512kbit" # Low priority traffic.
+CLASS5_BITRATE="512kbit" # Lower priority traffic.
+CLASS6_BITRATE="256kbit" # Lowest priority traffic.
+ 
+ 
+modprobe sch_htb
+modprobe sch_sfq
+modprobe act_police
+modprobe sch_netem
+ 
+# Delete the qdisc so we can try from the beginning
+tc qdisc del dev eth0 root
+ 
+# Add primary qdisc - This disc will default to the 1:4 secondary class (e.g. rate 6mbit ceil 10mbit)
+tc qdisc add dev eth0 root handle 1:0 htb default 4
+ 
+# Add primary class
+tc class add dev eth0 parent 1:0 classid 1:1 htb rate $CONNECTION_BITRATE ceil $MAX_BITRATE
+ 
+# Add secondary classes inside the primary class
+tc class add dev eth0 parent 1:1 classid 1:2 htb rate $CLASS1_BITRATE ceil $MAX_BITRATE
+tc class add dev eth0 parent 1:1 classid 1:3 htb rate $CLASS2_BITRATE ceil $MAX_BITRATE
+tc class add dev eth0 parent 1:1 classid 1:4 htb rate $CLASS3_BITRATE ceil $MAX_BITRATE
+tc class add dev eth0 parent 1:1 classid 1:5 htb rate $CLASS4_BITRATE ceil $MAX_BITRATE
+tc class add dev eth0 parent 1:1 classid 1:6 htb rate $CLASS5_BITRATE ceil $MAX_BITRATE
+tc class add dev eth0 parent 1:1 classid 1:7 htb rate $CLASS6_BITRATE ceil $MAX_BITRATE
+ 
+# Set priority, and tell packets marked with handle number # (e.g. 1) to go through the defined secondary class channel (e.g. 1:2)
+tc filter add dev eth0 parent 1:0 protocol ip prio 0 handle 1 fw flowid 1:2
+tc filter add dev eth0 parent 1:0 protocol ip prio 2 handle 2 fw flowid 1:3
+tc filter add dev eth0 parent 1:0 protocol ip prio 3 handle 3 fw flowid 1:4
+tc filter add dev eth0 parent 1:0 protocol ip prio 6 handle 4 fw flowid 1:5
+tc filter add dev eth0 parent 1:0 protocol ip prio 9 handle 5 fw flowid 1:6
+tc filter add dev eth0 parent 1:0 protocol ip prio 8 handle 6 fw flowid 1:7
+ 
+# Tell which algorithm the classes use. SFQ insures that every packet has a fair chance inside the defined class
+tc qdisc add dev eth0 parent 1:2 sfq
+tc qdisc add dev eth0 parent 1:3 sfq
+tc qdisc add dev eth0 parent 1:4 sfq
+tc qdisc add dev eth0 parent 1:5 sfq
+tc qdisc add dev eth0 parent 1:6 sfq
+tc qdisc add dev eth0 parent 1:7 sfq
+ 
+# Give "overhead" packets highest priority
+iptables -A OUTPUT -t mangle -p tcp --syn -m length --length 40:68 -j CLASSIFY \
+  --set-class 1:2
+iptables -A OUTPUT -t mangle -p tcp --tcp-flags ALL SYN,ACK -m length --length 40:68 \
+  -j CLASSIFY --set-class 1:2
+iptables -A OUTPUT -t mangle -p tcp --tcp-flags ALL ACK -m length --length 40:100 \
+  -j CLASSIFY --set-class 1:2
+iptables -A OUTPUT -t mangle -p tcp --tcp-flags ALL RST -j CLASSIFY --set-class 1:2
+iptables -A OUTPUT -t mangle -p tcp --tcp-flags ALL ACK,RST -j CLASSIFY \
+  --set-class 1:2
+iptables -A OUTPUT -t mangle -p tcp --tcp-flags ALL ACK,FIN -j CLASSIFY \
+  --set-class 1:2
+ 
+# ICMP, UDP
+iptables -A OUTPUT -t mangle -p udp -j CLASSIFY --set-class 1:4
+iptables -A OUTPUT -t mangle -p icmp -m length --length 28:1500 -m limit \
+  --limit 2/s --limit-burst 5 -j CLASSIFY --set-class 1:4
+ 
+# Domain lookups
+iptables -A OUTPUT -t mangle -p tcp --dport domain -j CLASSIFY --set-class 1:2
+ 
+# Murmur - VOIP
+#iptables -A OUTPUT -t mangle -p tcp --dport 64738 -j MARK --set-mark 1
+#iptables -A OUTPUT -t mangle -p tcp --sport 64738 -j MARK --set-mark 1
+#iptables -A OUTPUT -t mangle -p udp --dport 64738 -j MARK --set-mark 1
+#iptables -A OUTPUT -t mangle -p udp --sport 64738 -j MARK --set-mark 1
+ 
+# OpenVPN
+iptables -A OUTPUT -t mangle -p tcp --dport 4000 -j MARK --set-mark 1
+iptables -A OUTPUT -t mangle -p tcp --sport 4000 -j MARK --set-mark 1
+ 
+# Video Streaming
+#iptables -A OUTPUT -t mangle -p tcp --dport 32030 -j MARK --set-mark 2
+#iptables -A OUTPUT -t mangle -p tcp --sport 32030 -j MARK --set-mark 2
+ 
+# SSH
+iptables -A OUTPUT -t mangle -p tcp --dport 32022 -j MARK --set-mark 3
+iptables -A OUTPUT -t mangle -p tcp --sport 32022 -j MARK --set-mark 3
+ 
+# HTTP/HTTPS
+iptables -A OUTPUT -t mangle -p tcp --dport 80 -j MARK --set-mark 4
+iptables -A OUTPUT -t mangle -p tcp --sport 80 -j MARK --set-mark 4
+iptables -A OUTPUT -t mangle -p tcp --dport 443 -j MARK --set-mark 4
+iptables -A OUTPUT -t mangle -p tcp --sport 443 -j MARK --set-mark 4
+iptables -A OUTPUT -t mangle -p tcp -m multiport --sport http,https -j CLASSIFY --set-class 1:5
+ 
+# Lower priority example
+#iptables -A OUTPUT -t mangle -p tcp --dport 48654:50159 -j MARK --set-mark 5
+#iptables -A OUTPUT -t mangle -p tcp --sport 48654:50159 -j MARK --set-mark 5
+#iptables -A OUTPUT -t mangle -p udp --dport 48654:50159 -j MARK --set-mark 5
+#iptables -A OUTPUT -t mangle -p udp --sport 48654:50159 -j MARK --set-mark 5
+ 
+# Lowest priority example
+#iptables -A OUTPUT -t mangle -p udp --dport 22811:22819 -j MARK --set-mark 6
+#iptables -A OUTPUT -t mangle -p udp --sport 22811:22819 -j MARK --set-mark 6
+ 
+echo "Traffic QOS Enabled"
